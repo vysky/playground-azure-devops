@@ -1,0 +1,55 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+- stage: build_and_scan
+  jobs:
+  - job:
+    steps:
+    - task: SonarQubePrepare@5
+      inputs:
+        SonarQube: 'sonarqube'
+        scannerMode: 'Other'
+        extraProperties: |
+          # Additional properties that will be passed to the scanner,
+          # Put one key=value per line, example:
+          # sonar.exclusions=**/*.bin
+          sonar.projectKey=cicd_cicd
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        # remember to change dsonar.host.url with the vm's ip address
+        # and dsonar.login with the generated token from sonarqube
+        options: '-Dsonar.host.url=http://40.112.183.95:9000 -Dsonar.login=38bcac0a64b8f7672c6057836b1407bf708778e1'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: true
+        sqMavenPluginVersionChoice: 'latest'
+    - task: SonarQubePublish@5
+      inputs:
+        pollingTimeoutSec: '300'
+
+- stage: upload
+  jobs:
+  - job:
+    steps:
+    - script: echo uploading
+
+- stage: deploy
+  jobs:
+  - job:
+    steps:
+    - script: echo deploying
