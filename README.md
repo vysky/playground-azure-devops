@@ -128,11 +128,11 @@ fixed it by adding `options: '-Dsonar.host.url=http://40.112.183.95:9000'` to th
 
 2. Not authorized. Analyzing this project requires authentication. Please provide a user token in sonar.login or other credentials in sonar.login and sonar.password.
 
-fixed it by adding `options: -Dsonar.login=38bcac0a64b8f7672c6057836b1407bf708778e1'
+fixed it by adding `options: -Dsonar.login=38bcac0a64b8f7672c6057836b1407bf708778e1`
+
 the token is the one generated when following the instruction to integrate sonarqube and azure
 
-best practice: may be add the token as env variable
-https://stackoverflow.com/a/63920566
+add the token as env variable in actual project, see https://stackoverflow.com/a/63920566
 
 or
 
