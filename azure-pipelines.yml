@@ -29,7 +29,7 @@ stages:
         mavenPomFile: 'pom.xml'
         # remember to change dsonar.host.url with the vm's ip address
         # and dsonar.login with the generated token from sonarqube
-        options: '-Dsonar.host.url=http://40.112.183.95:9000 -Dsonar.login=38bcac0a64b8f7672c6057836b1407bf708778e1'
+        options: '-Dsonar.host.url=http://20.168.192.167:9000 -Dsonar.login=fb1e8f022b4e28e7ada4993364ff474d35c75d77'
         publishJUnitResults: true
         testResultsFiles: '**/surefire-reports/TEST-*.xml'
         javaHomeOption: 'JDKVersion'
@@ -41,6 +41,17 @@ stages:
     - task: SonarQubePublish@5
       inputs:
         pollingTimeoutSec: '300'
+    # - script: mkdir /tmp/deploy
+    # - script: cp $(Agent.BuildDirectory)/s/target/simple-maven-war.war /tmp/deploy
+    # - script: cp $(Agent.BuildDirectory)/**/**/*.war /tmp/deploy
+    # - script: ls -al /
+    # - script: ls -al /tmp
+    # - script: ls -al /tmp/deploy
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/s/target/simple-maven-war.war'
+        artifact: 'simple-maven-war'
+        publishLocation: 'pipeline'
 
 - stage: upload
   jobs:
@@ -52,4 +63,17 @@ stages:
   jobs:
   - job:
     steps:
-    - script: echo deploying
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'current'
+        artifactName: 'simple-maven-war'
+        # itemPattern: 
+        targetPath: '$(Pipeline.Workspace)/s'
+    - task: TomcatDeployment@1
+      inputs:
+        TomcatUrl: 'http://20.168.192.167:8888'
+        Username: 'admin'
+        Password: '11'
+        Warfile: 'simple-maven-war.war'
+        Context: '/simple-maven-war'
+        ServerVersion: '7OrAbove'
