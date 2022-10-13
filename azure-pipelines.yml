@@ -41,12 +41,6 @@ stages:
     - task: SonarQubePublish@5
       inputs:
         pollingTimeoutSec: '300'
-    # - script: mkdir /tmp/deploy
-    # - script: cp $(Agent.BuildDirectory)/s/target/simple-maven-war.war /tmp/deploy
-    # - script: cp $(Agent.BuildDirectory)/**/**/*.war /tmp/deploy
-    # - script: ls -al /
-    # - script: ls -al /tmp
-    # - script: ls -al /tmp/deploy
     - task: PublishPipelineArtifact@1
       inputs:
         targetPath: '$(Pipeline.Workspace)/s/target/simple-maven-war.war'
@@ -67,7 +61,6 @@ stages:
       inputs:
         buildType: 'current'
         artifactName: 'simple-maven-war'
-        # itemPattern: 
         targetPath: '$(Pipeline.Workspace)/s'
     - task: TomcatDeployment@1
       inputs:
