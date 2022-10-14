@@ -10,7 +10,15 @@
 
 4. build a custom tomcat image, start it and integrate it with azure devops
 
-5. paste the pipeline code and run the pipeline
+5. run the pipeline and deploy the war file to tomcat
+
+6. containized the tomcat container with the war file
+
+7. push the containerized tomcat to azure container registry
+
+8. install minikube on local machine
+
+9. download the containerized tomcat and run it locally
 
 ---
 
@@ -172,30 +180,6 @@ https://learn.microsoft.com/en-us/azure/devops/pipelines/artifacts/pipeline-arti
 
 ---
 
-## create agent (on hold)
-
-1. create an agent using azure vm (cannot use wsl as wsl do not have access to systemctl) or vmware
-
-2. install ubuntu 20.04 server
-
-3. go to azure devops > pipelines > environment
-
-4. create a new environment by selecting vm as the resource and linux as the os, then copy the registration script
-
-5. login to the new ubuntu server and run the registration script
-
-6. go to azure devops repos, copy the code snippet to push the code to azure devops repos
-
-7. on your local git repo, paste in the code snippet to push it to azure devops repos
-
-8. if password is required, go back to azure devops repos to generate the account info
-
-9. once the code is pushed to azure devops repos, go to azure devops pipelines and create a new pipeline
-
-10. as the code is in azure devops repos, select the azure devops repos option when creating
-
----
-
 ## deploy containerized tomcat to kube
 
 ### containerize the tomcat
@@ -204,17 +188,19 @@ https://learn.microsoft.com/en-us/azure/devops/pipelines/artifacts/pipeline-arti
 
 2. run `docker commit <container id> <new name>`
 
+3. not able to automate this step for now as there is the need to grep the container id but it is randomly generated
+
 ### login and push the image to acr
 
-1. create acr in azure and go to access keys to enable admin user
+1. create a container registry in azure and go to access keys to enable admin user
 
 2. ensure azure-cli is installed in the vm
 
 3. run `sudo az login -u <username>`
 
-4. run `sudo az acr --name <registry name>`, and enter the username and password when prompted
+4. run `sudo az acr login --name <registry name>`, and enter the username and password when prompted
 
-5. run `sudo docker login <login server>`, and enter the username and password if prompted
+5. skip if ran step 3 and 4. run `sudo docker login <login server>`, and enter the username and password if prompted
 
 6. run `docker tag <image> <registry name>/<image>:<tag>` (if no tag is entered, latest tag will be assigned)
 
@@ -242,7 +228,7 @@ https://learn.microsoft.com/en-us/azure/container-registry/container-registry-ge
 
 9. the tomcat app can be accessed from http://127.0.0.1:8888/simple-maven-war or http://127.0.0.1:8888/simple-maven-war/
 
-### add secret using (if pull from acr)
+### add secret using (if login and pull from acr instead of using docker)
 
 ```
 kubectl create secret docker-registry <secret-name> --namespace <namespace> --docker-server=<container-registry-name>.azurecr.io --docker-username=<service-principal-ID> --docker-password=<service-principal-password>
@@ -284,7 +270,7 @@ kubectl port-forward pod/<pod> -n <namespace> 8888:8888
 
 1. trouble creating principal account
 
-no privileges
+wanted to pull the image from acr but no privileges
 
 instead, docker login locally using `docker login -u <username> -p <password> <registry>` then pull the image
 
@@ -294,7 +280,7 @@ the username and password is from acr > access keys
 
 2. pulling from registry
 
-kubectl tried to pull the image from the registry instead of the local image
+kubectl tried to pull the image from the registry (fail as the account provided do not have enough privilges) instead of using the local image
 
 fixed it by adding `imagePullPolicy: Never` in the yaml file
 
@@ -302,9 +288,9 @@ fixed it by adding `imagePullPolicy: Never` in the yaml file
 
 need to run `eval $(minikube -p minikube docker-env)`
 
-running `minikube docker-env` will outputs environment variables needed to point the local docker daemon to the minikube internal docker registry, and will propose to use `eval $(minikube -p minikube docker-env)`
+running `minikube docker-env` will outputs environment variables needed to point the local docker daemon to the minikube internal docker registry, and minikube will propose to use `eval $(minikube -p minikube docker-env)`
 
-then pull the image again
+run the command then pull the image again, the image will be pulled to minikube internal docker registry instad of the docker on the local machine (wsl integration)
 
 https://medium.com/swlh/how-to-run-locally-built-docker-images-in-kubernetes-b28fbc32cc1d
 
