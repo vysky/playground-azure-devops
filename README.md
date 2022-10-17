@@ -2,35 +2,59 @@
 
 ## summary
 
-1. create azure devops organization if havent, and push a git repo to azure repos
+1. vm
 
-2. create a vm and install docker on it
+	a. create vm and install docker
+	
+	b. pull and run sonarqube
 
-3. start a sonarqube container and integrate it with azure devops
+	c. build tomcat with dockerfile and run the containerized image
 
-4. build a custom tomcat image, start it and integrate it with azure devops
+	d. add inbound port rules
 
-5. run the pipeline and deploy the war file to tomcat
+2. azure devops
+	
+	a. create azure devops organization
 
-6. containized the tomcat container with the war file
+	b. push a git repo to azure repos in azure devops
 
-7. push the containerized tomcat to azure container registry
+	c. install tomcat and sonarqube extensions
 
-8. install minikube on local machine
+	d. setup and integrate sonarqube with azure devops
 
-9. download the containerized tomcat and run it locally
+	e. run azure devops pipeline
+	
+		i. scan source code using sonarqube
 
----
+		ii. build the artifact using maven
+		
+		iii. deploy the .war file to tomcat
 
-## docker
+3. kubernetes
 
-### create a vm and install docker
+	a. install minikube on local machine
+
+	b. commit (update) the tomcat container with the deployed .war file
+
+	c. push the updated tomcat image to acr
+	
+	d. pull the updated tomcat image from acr to local machine
+	
+	e. create pod using kubectl (kubernetes command line tool) through minikube
+	
+	f. run port forwarding on the pod so tomcat will be accessible locally
+
+## vm
+
+### create a vm
 
 1. go to azure portal and create a vm using ubuntu 20.04 server image
 
 2. ssh into the vm using `ssh -i <private key> <username>@<ip address>`
 
-3. install docker using the following commands
+### install docker
+
+1. install docker using the following commands
 
 ```
 sudo apt-get update
@@ -48,85 +72,65 @@ sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 ```
 
----
+### pull and run sonarqube
 
-## sonarqube
+1. run `sudo docker pull sonarqube:lts`
 
-### install sonarqube extension
+2. once the image is pulled, run `sudo docker run -d --name "sonarqube" -p 9000:9000 sonarqube:lts` to start the sonarqube container
 
-1. go to azure devops and click on the marketplace icon (top right hand corner)
+3. run `sudo docker ps` to list all running containers
 
-2. search for sonarqube and install the extension
+4. tip - run `sudo docker ps --all` to list all containers
 
-https://marketplace.visualstudio.com/items?itemName=SonarSource.sonarqube
+### build and run tomcat
 
-### pull and run sonarqube using docker
+1. git clone this repo in the vm
 
-1. ssh into the vm and run `docker pull sonarqube:lts`
+2. cd into the dockerfile directory of the repo
 
-2. once the image is pulled, run `docker run -d --name "sonarqube" -p 9000:9000 sonarqube:lts`
+3. run `sudo docker build tomcat -t "tomcat"` to build the tomcat image
 
-3. if encounter any permission issue, run with `sudo`
+4. run `sudo docker images` to list all top level images
 
-### add inbound port rule
+5. run `sudo docker run -d --name "tomcat" -p 80:8080 -p 8888:8080 tomcat` to start the tomcat container
 
-1. go to the vm > networking > inbound port rules, create a new rule and change the destination port ranges to 9000 (leave other values as default)
+6. tip - adding `-p 80:8080` in `docker run` enables the container to be accessible on http (without adding the port behind the ip address), and `-p 443:8080` for https
 
-2. once the rule is added, sonarqube shoud be accessible through ip:9000
+	https://stackoverflow.com/a/73841213
 
-### integrate sonarqube and azure devops
+### add inbound port rules
 
-1. go to azure devops and create a personal access token (save it for later use) with full access (should not for production use)
+1. go back to azure portal > vm created in previous step > networking > inbound port rules
 
-2. go to sonarqube > adminstration > alm integration > azure devops, paste the personal access token and url
+2. create a new rule and change the destination port ranges to 80 (leave other values as default)
 
-3. go to projects > add project > azure devops, paste the personal token when prompted
+3. repeat for port 8888 and 9000 (or the ports you put for docker run the previous steps)
 
-4. select the project created > set up selected repository
+## azure devops
 
-5. select with azure pipelines when prompted and instructions on how to continue will appear
+### create azure devops organization
 
-6. generate the token (step 2) when prompted (save it for later use), or go to adminstrative > security > users > token icon and generate from there
+1. create azure devops organization if new (or if you are using acloudguru's cloud playground like i am)
 
-7. go back to azure devops > project settings (bottom left corner) > service connection > create service connection > sonarqube > next
+2. create a project in azure devops
 
-8. follow the instructions in sonarqube and enter the url, token and name, and save the service connection
+### adding repo to azure devops
 
-9. continue following the instructions in sonarqube to edit the pipeline, or use the azure-pipelines.yml file in the repo
+1. on your local machine, git clone this repo
 
-### resources
+2. cd into the repo, run `rm -rf .git` to remove all the git information
 
-https://www.youtube.com/watch?v=GfgUTj4rp7c
+3. run `git init`, `git config user.email <email>`, `git config user.name <username>` to setup the git repo
 
-https://www.youtube.com/watch?v=ApMeWoRkv-A
+4. run `git remote add origin <azure repo>`, example of azure repo https://clouduserp9583c7fe@dev.azure.com/clouduserp9583c7fe/cicd/_git/test
 
-https://docs.sonarqube.org/latest/analysis/azuredevops-integration/
+	the commands can be found when creating a new project and trying to setup the repo
 
-### issues encountered
+5. run `git commit -m "<message>"`
 
-1. SonarQube server [http://localhost:9000] can not be reached
+6. run `git push -u origin --all` to push the code to azure repo
 
-fixed it by adding `options: '-Dsonar.host.url=http://40.112.183.95:9000'` to the maven task
-
-2. Not authorized. Analyzing this project requires authentication. Please provide a user token in sonar.login or other credentials in sonar.login and sonar.password.
-
-fixed it by adding `options: -Dsonar.login=38bcac0a64b8f7672c6057836b1407bf708778e1`
-
-the token is the one generated when following the instruction to integrate sonarqube and azure
-
-add the token as env variable in actual project, see https://stackoverflow.com/a/63920566
-
-or
-
-go to sonarqube > adminstration > configuration > security (not the security beside configuration), and turn off force user authentication
-
-3. The SonarQube Prepare Analysis Configuration must be added.
-
-probably due to seperating the tasks into different stages, combining all the stage into single stage and the issue is resolved
-
----
-
-## tomcat
+7. going back to azure devops > repos, refreshing the page should show the pushed code
 
 ### install apache tomcat deployment extension
 
@@ -134,101 +138,103 @@ probably due to seperating the tasks into different stages, combining all the st
 
 2. search for apache tomcat deployment and install the extension
 
-https://marketplace.visualstudio.com/items?itemName=ms-vscs-rm.apachetomcat
+	https://marketplace.visualstudio.com/items?itemName=ms-vscs-rm.apachetomcat
 
-### build and run tomcat using docker
+### install sonarqube extension
 
-tomcat
-	use the dockerfile i created for jenkins
-	go to the vm with docker, follow my guide to create custom tomcat image and run it
-	remember to create an inbound rule for the vm
-	source port * and destincation 8888 as i put 8888 when i start the tomcat custom image
+1. go to azure devops and click on the marketplace icon (top right hand corner)
 
-docker build tomcat -t "tomcat-custom"
+2. search for sonarqube and install the extension
 
-docker run -d --name "tomcat" -p 8888:8080 tomcat-custom
+	https://marketplace.visualstudio.com/items?itemName=SonarSource.sonarqube
 
-### add inbound port rule
+### integrate sonarqube with azure devops
 
-1. go to the vm > networking > inbound port rules, create a new rule and change the destination port ranges to 8888 (leave other values as default)
+#### personal access token
 
-2. once the rule is added, tomcat shoud be accessible through ip:8888
+1. go to azure devops, click on the user settings icon (beside the user profile pic) > personal access token > new token
 
-### deployment task
+2. create a token with full access and save the token for later use
 
-add tomcat deployment task to the pipeline, see azure-pipelines.yml file
+3. go back to sonarqube > adminstration > alm integration > azure devops, paste the personal access token and the azure devops url (example https://dev.azure.com/clouduserp9583c7fe) when prompted
 
-### issues encountered
+#### service connection
 
-1. /usr/bin/curl failed with return code: 26
+1. in sonarqube, go to projects > add project > azure devops
 
-the working directory is purged once the stage is completed thus curl cannot open the file to deply it to tomcat
+2. paste the personal token when prompted
 
-tried copying the war file to another directory (example tmp) to deploy in another stage, but still cannot as everything will still be purged (may be azure devops uses a fresh vm image)
+3. select the project created previously in azure devops > set up selected repository
 
-need to use publish pipeline artifact task during the build stage and download pipeline artifact stage during the deploy stage
+4. select with azure pipelines when prompted and instructions on how to continue will appear
 
-### resources
+5. generate the token (step 2) when prompted and save it for later use (you can also generate the token from adminstrative > security > users > token icon)
 
-https://stackoverflow.com/a/52547885
+6. go back to azure devops > project created previously > project settings (bottom left corner) > service connection > create service connection > sonarqube > next
 
-http://aka.ms/tomcatdeploymenttask
+7. follow the instructions in sonarqube and enter the url, token and name > save the service connection
 
-http://go.microsoft.com/fwlink/?LinkId=550988
+### run the pipeline
 
-https://learn.microsoft.com/en-us/azure/devops/pipelines/artifacts/pipeline-artifacts
+1. before running the pipeline, ensure the azure-pipelines.yml file is udated with the vm ip address
 
----
+2. to run the pipeline, go back to azure devops > pipelines > select azure repos git > the project created previously
 
-## deploy containerized tomcat to kube
+3. azure devops should auto detect the azure-pipelines.yml file
 
-### containerize the tomcat
+4. click run pipeline to run the pipeline
 
-1. ssh to the vm and run `docker ps` to find the tomcat container id
+5. once the pipeline is finished, check tomcat url (<url>:<port>/simple-maven-war) to find the app accessible with the deployed .war file
 
-2. run `docker commit <container id> <new name>`
+## kubernetes
 
-3. not able to automate this step for now as there is the need to grep the container id but it is randomly generated
+### commit (update) tomcat container with the deployed .war file
+
+1. go back to the vm and run `sudo docker ps` to find the tomcat container id
+
+2. run `sudo docker commit <container id> <new name>` to update the tomcat image
+
+3. run `sudo docker images` to find the update tomcat iamge
 
 ### login and push the image to acr
 
-1. create a container registry in azure and go to access keys to enable admin user
+1. go back to azure portal, create a azure container registry and go to access keys page to enable admin user
 
-2. ensure azure-cli is installed in the vm
+2. go back to the vm and install azure-cli using `sudo apt install azure-cli`
 
-3. run `sudo az login -u <username>`
+3. once azure-cli is installed, run `sudo az login -u <username>` and enter the password when prompted (azure user account, not the admin account created in step 1)
 
-4. run `sudo az acr login --name <registry name>`, and enter the username and password when prompted
+4. run `sudo az acr login --name <registry name>` to login to acr, enter the username and password when prompted (the admin user username and password generated from step 1)
 
-5. skip if ran step 3 and 4. run `sudo docker login <login server>`, and enter the username and password if prompted
+5. run `sudo docker tag <image> <login server>/<image>:<tag>`
 
-6. run `docker tag <image> <registry name>/<image>:<tag>` (if no tag is entered, latest tag will be assigned)
+6. run `sudo docker push <registry name>/<image>:<tag>` and go back to azure portal to check acr once completed
 
-7. run `docker push <registry name>/<image>:<tag>` and check acr once completed
+	https://learn.microsoft.com/en-us/azure/container-registry/container-registry-get-started-docker-cli?tabs=azure-cli
 
-https://learn.microsoft.com/en-us/azure/container-registry/container-registry-get-started-docker-cli?tabs=azure-cli
-
-### pull and deploy from acr to kube
+### pull the tomcat image from acr to local machine
 
 1. install minikube on local machine
 
-2. run `docker login -u <username> -p <password> <registry>`
+2. run `docker login -u <username> -p <password> <login server>` to login to acr
 
-3. run `eval $(minikube -p minikube docker-env)`
+3. run `eval $(minikube -p minikube docker-env)` to point the local docker daemon to the minikube internal docker registry
 
-4. pull image by running `docker pull 4cd467f3.azurecr.io/tomcat-deploy`, the image pulled should be useable on minikube
+4. pull image by running `docker pull <login server>/<image name>:<tag>`, the image pulled will be useable on minikube
 
-5. run `kubectl create namespace tomcat` to create the tomcat namespace
+### kubectl apply and port forwarding
 
-6. run `kubectl apply -f tomcat.yml` to start the pod
+1. run `kubectl create namespace tomcat` to create the tomcat namespace
 
-7. start the port forwarding using `kubectl port-forward main -n tomcat 8888:8080`
+2. run `kubectl apply -f tomcat.yml` to start the pod
 
-8. the port forwarding process will start and the terminal will not be useable during the port forwarding, type ctrl + c to cancel the port forwarding process
+3. start the port forwarding using `kubectl port-forward main -n tomcat 8888:8080`
 
-9. the tomcat app can be accessed from http://127.0.0.1:8888/simple-maven-war or http://127.0.0.1:8888/simple-maven-war/
+4. the port forwarding process will start and the terminal will not be useable during the port forwarding, type ctrl + c to cancel the port forwarding process
 
-### add secret using (if login and pull from acr instead of using docker)
+5. the tomcat app can be accessed from http://127.0.0.1:8888/simple-maven-war or http://localhost:8888/simple-maven-war/
+
+### create secret for acrs (if login and pull from acr instead of docker)
 
 ```
 kubectl create secret docker-registry <secret-name> --namespace <namespace> --docker-server=<container-registry-name>.azurecr.io --docker-username=<service-principal-ID> --docker-password=<service-principal-password>
@@ -265,6 +271,62 @@ kubectl get pod <pod> -n <namespace> -o wide
 
 kubectl port-forward pod/<pod> -n <namespace> 8888:8888
 ```
+
+## sonarqube
+
+### issues encountered
+
+1. SonarQube server [http://localhost:9000] can not be reached
+
+fixed it by adding `options: '-Dsonar.host.url=http://40.112.183.95:9000'` to the maven task
+
+2. Not authorized. Analyzing this project requires authentication. Please provide a user token in sonar.login or other credentials in sonar.login and sonar.password.
+
+fixed it by adding `options: -Dsonar.login=38bcac0a64b8f7672c6057836b1407bf708778e1`
+
+the token is the one generated when following the instruction to integrate sonarqube and azure
+
+add the token as env variable in actual project, see https://stackoverflow.com/a/63920566
+
+or
+
+go to sonarqube > adminstration > configuration > security (not the security beside configuration), and turn off force user authentication
+
+3. The SonarQube Prepare Analysis Configuration must be added.
+
+probably due to seperating the tasks into different stages, combining all the stage into single stage and the issue is resolved
+
+### resources
+
+https://www.youtube.com/watch?v=GfgUTj4rp7c
+
+https://www.youtube.com/watch?v=ApMeWoRkv-A
+
+https://docs.sonarqube.org/latest/analysis/azuredevops-integration/
+
+## tomcat
+
+### issues encountered
+
+1. /usr/bin/curl failed with return code: 26
+
+the working directory is purged once the stage is completed thus curl cannot open the file to deply it to tomcat
+
+tried copying the war file to another directory (example tmp) to deploy in another stage, but still cannot as everything will still be purged (may be azure devops uses a fresh vm image)
+
+need to use publish pipeline artifact task during the build stage and download pipeline artifact stage during the deploy stage
+
+### resources
+
+https://stackoverflow.com/a/52547885
+
+http://aka.ms/tomcatdeploymenttask
+
+http://go.microsoft.com/fwlink/?LinkId=550988
+
+https://learn.microsoft.com/en-us/azure/devops/pipelines/artifacts/pipeline-artifacts
+
+## minikube / kubernetes
 
 ### issues encountered
 
