@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: main
+  namespace: tomcat
+spec:
+  containers:
+    - name: main
+      image: 9583c7fe.azurecr.io/tomcat:v1
+      imagePullPolicy: Never
