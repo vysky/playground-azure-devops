@@ -5,11 +5,14 @@ FROM ubuntu:20.04
 # define default command
 CMD bash
 
-RUN apt update
-RUN apt -y upgrade
+# apt and apt-get
+# apt is for terminal (will show warning if run docker build using apt instead of apt-get)
+# apt-get is for script
+RUN apt-get update
+RUN apt-get -y upgrade
 # wget - to download tomcat
 # curl - use by tomcat
-RUN apt -y install openjdk-11-jdk wget curl
+RUN apt-get -y install openjdk-11-jdk wget curl
 
 RUN mkdir /usr/local/tomcat
 RUN wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.68/bin/apache-tomcat-9.0.68.tar.gz -O /tmp/tomcat.tar.gz
