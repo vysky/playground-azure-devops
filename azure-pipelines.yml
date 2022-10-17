@@ -11,6 +11,12 @@ pool:
 
 stages:
 
+- stage: docker_build
+  jobs:
+  - job:
+    steps:
+    - script: echo building
+
 - stage: build_and_scan
   jobs:
   - job:
@@ -63,9 +69,3 @@ stages:
         Warfile: 'simple-maven-war.war'
         Context: '/simple-maven-war'
         ServerVersion: '7OrAbove'
-
-- stage: upload
-  jobs:
-  - job:
-    steps:
-    - script: echo uploading
